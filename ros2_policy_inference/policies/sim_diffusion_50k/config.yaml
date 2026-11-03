@@ -1,0 +1,29 @@
+# Diffusion Policy trained on Le-007-turbo, without EMA (50k-step checkpoint; 125k: sim_diffusion).
+# Uses the diffusion code (policies/diffusion/diffusion_policy.py) with this checkpoint.
+# Run with: ./run_docker.sh --policy-name sim_diffusion_50k
+# Paths are inside the container (checkpoints/ is mounted at /checkpoints).
+ckpt_path: "/checkpoints/checkpoint_le007_diffusion/sim_diffusion_50k/pretrained_model"
+task: "pick up the fan by its handle"
+state_keys: [joint_pos, gripper_state]
+
+# IL grasp — overrides request_topic/chunk_topic in config/params.yaml.
+request_topic: "/il/grasp/request"
+chunk_topic: "/il/grasp/action_chunk"
+
+# Which obs each of the checkpoint's image features comes from, and how to encode it.
+# Trained on Le-007-turbo: depth is clipped to 41–500 mm and turbo-colormapped; depth_info.json
+# (copied from the dataset's meta/) carries those settings.
+cameras:
+  observation.images.wrist:
+    source: rgb
+    encoding: rgb
+  observation.images.depth:
+    source: depth
+    encoding: depth
+    info_path: "/checkpoints/checkpoint_le007_diffusion/depth_info.json"
+
+# Optional (unset = checkpoint default / auto):
+# device: "cuda"
+# n_action_steps: 8
+# num_inference_steps: 10
+# warmup: true

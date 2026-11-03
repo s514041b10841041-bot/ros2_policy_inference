@@ -32,6 +32,17 @@ def encode_depth(depth, d_min, d_max):
     return np.repeat(gray[:, :, None], 3, axis=2)
 
 
+def turbo_colorize(gray3):
+    """encode_depth output -> the turbo-colormapped depth of datasets whose depth_info.json says
+    colormap: turbo (e.g. Le-007-turbo): grey mapped through cv2.COLORMAP_TURBO, BGR->RGB,
+    invalid pixels (grey 0) set back to (0, 0, 0)."""
+    import cv2
+    gray = gray3[:, :, 0]
+    rgb = cv2.cvtColor(cv2.applyColorMap(gray, cv2.COLORMAP_TURBO), cv2.COLOR_BGR2RGB)
+    rgb[gray == 0] = 0
+    return rgb
+
+
 def _make_encoder(spec):
     """One cameras entry -> f(obs value) -> the (H, W, 3) uint8 the model expects. A function
     rather than an inline lambda so each camera's parameters are captured by value."""
@@ -46,6 +57,11 @@ def _make_encoder(spec):
             d_min, d_max = float(info["depth_min_m"]) * 1000.0, float(info["depth_max_m"]) * 1000.0
         else:
             d_min, d_max = float(info["depth_min"]), float(info["depth_max"])
+        colormap = info.get("colormap")
+        if colormap == "turbo":
+            return lambda depth: turbo_colorize(encode_depth(depth, d_min, d_max))
+        if colormap:
+            raise ValueError(f"{spec['info_path']}: unknown depth colormap '{colormap}' (known: turbo)")
         return lambda depth: encode_depth(depth, d_min, d_max)
     raise ValueError(f"unknown camera encoding '{encoding}' (known: rgb, depth)")
 

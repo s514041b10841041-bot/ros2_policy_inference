@@ -26,7 +26,14 @@ def create_policy(name: str) -> PolicyModel:
     if name == "diffusion":
         from .diffusion.diffusion_policy import DiffusionPolicyModel
         return DiffusionPolicyModel()
+    if name in ("sim_diffusion", "sim_diffusion_ema", "sim_diffusion_50k", "sim_diffusion_ema_50k"):
+        # same diffusion code, different checkpoint: policies/<name>/config.yaml
+        from .diffusion.diffusion_policy import DiffusionPolicyModel
+        return DiffusionPolicyModel(config_dir=name)
     if name == "omnireset":
         from .omnireset.omnireset_policy import OmniResetPolicyModel
         return OmniResetPolicyModel()
-    raise ValueError(f"unknown policy_name '{name}' (options: dummy, act, pi, liteflow, groot, diffusion, omnireset)")
+    raise ValueError(
+        f"unknown policy_name '{name}' (options: dummy, act, pi, liteflow, groot, diffusion, "
+        "sim_diffusion, sim_diffusion_ema, sim_diffusion_50k, sim_diffusion_ema_50k, omnireset)"
+    )
