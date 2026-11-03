@@ -14,7 +14,9 @@ cameras:
   observation.images.wrist:
     source: rgb
     encoding: rgb
-  observation.images.depth:
+  # checkpoint_act_375 was trained before the rename to observation.images.depth, so it
+  # still declares wrist_depth (see its config.json / depth_encoding.json).
+  observation.images.wrist_depth:
     source: depth
     encoding: depth
     info_path: "/checkpoints/checkpoint_act_375/depth_encoding.json"
