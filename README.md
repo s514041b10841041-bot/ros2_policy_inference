@@ -37,6 +37,8 @@ Requires [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-nat
 | `act` | not implemented |
 | `pi` | π₀.₅ (pi05) LeRobot checkpoint, working |
 | `liteflow` | InternVL3-1B + FLOWER, working |
+| `act_jepa` | ACT-JEPA export (`policies/act_jepa/config.yaml`), loads; see its known gripper issue |
+| `sim_act_jepa_50k` / `_87_5k` / `_125k` | ACT-JEPA on Le-007-turbo (RGB + turbo depth, gripper hidden from the policy), loads |
 | `omnireset` | rl-template OmniReset student / RL fine-tune, CPU only, own image |
 
 Checkpoints hosted on Hugging Face (e.g. `pi`'s) are downloaded with:

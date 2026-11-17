@@ -25,3 +25,7 @@ policy_inference_node:
     # doesn't set request_topic/chunk_topic (see policies/base_policy.py).
     request_topic: "/il/grasp/request"
     chunk_topic: "/il/grasp/action_chunk"
+
+    # Debug: log one "obs-sync" line per chunk saying whether the observation matched the robot
+    # when the chunk started executing (stale image, RGB/depth from different frames, arm moved).
+    check_obs_sync: true

@@ -1,4 +1,4 @@
-# Diffusion Policy trained on Le-007-turbo, without EMA (50k-step checkpoint; 125k: sim_diffusion).
+# Diffusion Policy trained on Le-007-turbo, without EMA (50k-step checkpoint; 125k: sim_diffusion_125k).
 # Uses the diffusion code (policies/diffusion/diffusion_policy.py) with this checkpoint.
 # Run with: ./run_docker.sh --policy-name sim_diffusion_50k
 # Paths are inside the container (checkpoints/ is mounted at /checkpoints).
@@ -27,3 +27,10 @@ cameras:
 # n_action_steps: 8
 # num_inference_steps: 10
 # warmup: true
+
+# Real-Time Chunking (policies/diffusion/rtc_ddim.py), used automatically while the sim's
+# "IL Grasp: Real-Time Chunking" switch is on (else ignored):
+# rtc:
+#   enabled: true               # false = always answer with plain chunks
+#   max_guidance_weight: 50.0   # inpainting strength; offline 50 keeps the overlap within ~0.01 (normalized)
+#   schedule: linear            # prefix weight decay over the overlap: linear | exp | ones | zeros

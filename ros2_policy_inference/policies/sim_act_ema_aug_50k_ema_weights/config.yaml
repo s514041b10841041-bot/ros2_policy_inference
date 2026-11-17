@@ -1,0 +1,37 @@
+# ACT on Le-007-turbo (delta_robot_friday baselines/run_le007_act_ema_aug.sh), 50k checkpoint,
+# EMA (averaged) weights from pretrained_model_ema/.
+# Trained with colour jitter on the wrist camera only (training-time augmentation, nothing to do at
+# inference) and no crop: the full 256x256 frames go in. chunk_size 50, n_obs_steps 1.
+# Uses the ACT code (policies/act/act_policy.py) with this checkpoint.
+# Run with: ./run_docker.sh --policy-name sim_act_ema_aug_50k_ema_weights
+# Paths are inside the container (checkpoints/ is mounted at /checkpoints).
+ckpt_path: "/checkpoints/checkpoint_le007_act_ema_aug/050000/pretrained_model_ema"
+task: "pick up the fan by its handle"
+state_keys: [joint_pos, gripper_state]
+
+# IL grasp — overrides request_topic/chunk_topic in config/params.yaml.
+request_topic: "/il/grasp/request"
+chunk_topic: "/il/grasp/action_chunk"
+
+# Which obs each of the checkpoint's image features comes from, and how to encode it.
+# Trained on Le-007-turbo: depth is clipped to 41–500 mm and turbo-colormapped; depth_info.json
+# (copied from the dataset's meta/) carries those settings.
+cameras:
+  observation.images.wrist:
+    source: rgb
+    encoding: rgb
+  observation.images.depth:
+    source: depth
+    encoding: depth
+    info_path: "/checkpoints/checkpoint_le007_act_ema_aug/depth_info.json"
+
+# Optional (unset = checkpoint default / auto):
+# device: "cuda"
+# Executed per chunk; 10 is what the checkpoint was trained/configured with (train.py act preset).
+n_action_steps: 10
+# warmup: true
+
+# Temporal ensembling (ACT paper): run the model every tick and average overlapping chunk
+# predictions instead of executing n_action_steps open-loop. null = off (checkpoint's own default;
+# forces n_action_steps=1 when set, ~10x more model calls per tick).
+# temporal_ensemble_coeff: 0.01

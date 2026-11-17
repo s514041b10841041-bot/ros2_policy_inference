@@ -26,14 +26,37 @@ def create_policy(name: str) -> PolicyModel:
     if name == "diffusion":
         from .diffusion.diffusion_policy import DiffusionPolicyModel
         return DiffusionPolicyModel()
-    if name in ("sim_diffusion", "sim_diffusion_ema", "sim_diffusion_50k", "sim_diffusion_ema_50k"):
-        # same diffusion code, different checkpoint: policies/<name>/config.yaml
+    if name in ("sim_diffusion_50k", "sim_diffusion_125k", "sim_diffusion_ema_50k", "sim_diffusion_ema_125k",
+                "sim_diffusion_ema_50k_ema_weights", "sim_diffusion_ema_125k_ema_weights"):
+        # same diffusion code, different checkpoint: policies/<name>/config.yaml. sim_diffusion_ema_*
+        # load the EMA run's raw weights, *_ema_weights the same checkpoints' EMA weights.
         from .diffusion.diffusion_policy import DiffusionPolicyModel
         return DiffusionPolicyModel(config_dir=name)
+    if name in ("sim_diffusion_aug_50k", "sim_diffusion_aug_125k", "sim_diffusion_ema_aug_50k_ema_weights", "sim_diffusion_ema_aug_125k_ema_weights"):
+        # augmented EMA run (wrist colour jitter): sim_diffusion_aug_50k / _125k = its raw weights,
+        # *_ema_weights = 50k / 125k EMA weights
+        from .diffusion.diffusion_policy import DiffusionPolicyModel
+        return DiffusionPolicyModel(config_dir=name)
+    if name in ("sim_act_aug_50k", "sim_act_aug_125k", "sim_act_ema_aug_50k_ema_weights", "sim_act_ema_aug_125k_ema_weights"):
+        # ACT with EMA + wrist colour jitter on Le-007-turbo: sim_act_aug_50k / _125k = its raw weights,
+        # *_ema_weights = 50k / 125k EMA weights
+        from .act.act_policy import ACTPolicyModel
+        return ACTPolicyModel(config_dir=name)
+    if name == "act_jepa":
+        # ACT-JEPA exported from delta_robot_friday/JEPA/act-jepa (scripts/export_for_ros.py)
+        from .act_jepa.act_jepa_policy import ACTJepaPolicyModel
+        return ACTJepaPolicyModel()
+    if name in ("sim_act_jepa_50k", "sim_act_jepa_87_5k", "sim_act_jepa_125k"):
+        # ACT-JEPA on Le-007-turbo (wrist RGB + turbo depth, gripper hidden from the policy):
+        # same act_jepa code, checkpoint from policies/<name>/config.yaml
+        from .act_jepa.act_jepa_policy import ACTJepaPolicyModel
+        return ACTJepaPolicyModel(config_dir=name)
     if name == "omnireset":
         from .omnireset.omnireset_policy import OmniResetPolicyModel
         return OmniResetPolicyModel()
     raise ValueError(
         f"unknown policy_name '{name}' (options: dummy, act, pi, liteflow, groot, diffusion, "
-        "sim_diffusion, sim_diffusion_ema, sim_diffusion_50k, sim_diffusion_ema_50k, omnireset)"
+        "sim_diffusion_50k, sim_diffusion_125k, sim_diffusion_ema_50k, sim_diffusion_ema_125k, "
+        "sim_diffusion_ema_50k_ema_weights, sim_diffusion_ema_125k_ema_weights, "
+        "sim_diffusion_aug_50k, sim_diffusion_aug_125k, sim_diffusion_ema_aug_50k_ema_weights, sim_diffusion_ema_aug_125k_ema_weights, sim_act_aug_50k, sim_act_aug_125k, sim_act_ema_aug_50k_ema_weights, sim_act_ema_aug_125k_ema_weights, act_jepa, sim_act_jepa_50k, sim_act_jepa_87_5k, sim_act_jepa_125k, omnireset)"
     )

@@ -13,21 +13,26 @@ from lerobot.configs import PreTrainedConfig
 from lerobot.policies import get_policy_class, make_pre_post_processors, prepare_observation_for_inference
 from lerobot.utils.constants import ACTION, OBS_STATE
 
-# colcon only installs .py files, so fall back to the mounted source tree in the container
-_CONFIG_PATH = next(
-    (p for p in (
-        os.path.join(os.path.dirname(__file__), "config.yaml"),
-        "/workspace/src/ros2_policy_inference/ros2_policy_inference/policies/act/config.yaml",
-    ) if os.path.isfile(p)),
-    None,
-)
+def _config_path(config_dir):
+    """policies/<config_dir>/config.yaml. colcon only installs .py files, so fall back to the
+    mounted source tree in the container."""
+    candidates = (
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), config_dir, "config.yaml"),
+        f"/workspace/src/ros2_policy_inference/ros2_policy_inference/policies/{config_dir}/config.yaml",
+    )
+    path = next((p for p in candidates if os.path.isfile(p)), None)
+    if path is None:
+        raise FileNotFoundError(f"no config.yaml for '{config_dir}' (looked in {list(candidates)})")
+    return path
 
 _STATE_SEGMENTS = {"joint_pos": 6, "gripper_state": 1, "ft_wrench": 6}
 
 
 class ACTPolicyModel(PolicyModel):
-    def __init__(self):
-        with open(_CONFIG_PATH) as f:
+    def __init__(self, config_dir="act"):
+        """config_dir: the policies/ subfolder whose config.yaml to use (act, sim_act_ema_aug_125k_ema_weights,
+        ...), so several ACT checkpoints can share this code."""
+        with open(_config_path(config_dir)) as f:
             cfg = yaml.safe_load(f) or {}
         self._log = get_logger("act_policy")
         self.request_topic = cfg.get("request_topic")

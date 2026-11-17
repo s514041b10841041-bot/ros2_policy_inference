@@ -1,0 +1,36 @@
+# ACT-JEPA on Le-007-turbo (delta_robot_friday/JEPA/act-jepa, configs/fan_grasp_sim/act-jepa.yaml),
+# checkpoint at step 50000 of 125k. Exported with scripts/export_for_ros.py.
+# Trained with wrist RGB + turbo-coloured depth, no colour jitter, no crop, chunk_size 50 at 60 fps.
+# The gripper command is hidden from the policy (context_state_mask [6] in the export's config.json):
+# the policy gets the full 7-D state, but the network zeroes the gripper dim itself, so the grasp is
+# decided from the images.
+# Uses the ACT-JEPA code (policies/act_jepa/act_jepa_policy.py) with this checkpoint.
+# Run with: ./run_docker.sh --policy-name sim_act_jepa_50k
+# Check with: python3 -m ros2_policy_inference.policies.act_jepa.parity_check /checkpoints/checkpoint_sim_act_jepa_50000
+# Paths are inside the container (checkpoints/ is mounted at /checkpoints).
+ckpt_path: "/checkpoints/checkpoint_sim_act_jepa_50000"
+state_keys: [joint_pos, gripper_state]
+task_index: 0          # single task: "pick up the fan by its handle"
+
+# IL grasp — overrides request_topic/chunk_topic in config/params.yaml.
+request_topic: "/il/grasp/request"
+chunk_topic: "/il/grasp/action_chunk"
+
+# Which obs each of the checkpoint's image features comes from, and how to encode it.
+# Le-007-turbo depth: clipped to 41–500 mm and turbo-colormapped (depth_info.json, copied from the
+# dataset's meta/ by the export).
+cameras:
+  observation.images.wrist:
+    source: rgb
+    encoding: rgb
+  observation.images.depth:
+    source: depth
+    encoding: depth
+    info_path: "/checkpoints/checkpoint_sim_act_jepa_50000/depth_info.json"
+
+# Actions executed per request out of the 50-step chunk (the sim ACT configs use 10 too).
+n_action_steps: 10
+
+# Optional:
+# device: "cuda"
+# warmup: true

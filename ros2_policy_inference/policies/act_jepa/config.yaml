@@ -1,0 +1,31 @@
+# ACT-JEPA checkpoint + inference knobs, read by act_jepa_policy.py. Paths are inside the
+# container (checkpoints/ is mounted at /checkpoints).
+#
+# The checkpoint is an export, not a raw training checkpoint. Make it with:
+#   delta_robot_friday/JEPA/act-jepa/scripts/export_for_ros.py
+# Check it against the training code with:
+#   python3 -m ros2_policy_inference.policies.act_jepa.parity_check /checkpoints/checkpoint_act_jepa_50k
+ckpt_path: "/checkpoints/checkpoint_act_jepa_50k"
+
+# Order matters: the checkpoint was trained on observation.state = [joint_0..5, gripper].
+# gripper_state is what the node feeds back (1 = open), not a measured gripper position.
+state_keys: [joint_pos, gripper_state]
+image_source: rgb      # wrist RGB only; this checkpoint has no depth input
+task_index: 0          # single-task dataset ("pick up the fan by its handle")
+
+# IL grasp — overrides request_topic/chunk_topic in config/params.yaml.
+request_topic: "/il/grasp/request"
+chunk_topic: "/il/grasp/action_chunk"
+
+# Actions executed per request out of the 50-step chunk. 10 is the same as the act policy.
+# Actions are deltas, so a long open-loop run accumulates error.
+n_action_steps: 10
+
+# Optional:
+# device: "cuda"
+# warmup: true
+
+# KNOWN ISSUE (checkpoint-50000): in offline replay with the gripper fed back the way this node
+# does it, the policy never closes in 83/87 train and 9/10 val episodes. It learned to copy the
+# gripper value in observation.state instead of deciding when to grasp.
+# See delta_robot_friday/JEPA/README.md. Expect it to approach the handle but not grasp.

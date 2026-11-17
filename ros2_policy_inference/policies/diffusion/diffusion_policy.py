@@ -12,7 +12,9 @@ from ..cameras import build_cameras
 import torch
 from lerobot.configs import PreTrainedConfig
 from lerobot.policies import get_policy_class, make_pre_post_processors, prepare_observation_for_inference
-from lerobot.utils.constants import ACTION, OBS_STATE
+from lerobot.utils.constants import ACTION, OBS_IMAGES, OBS_STATE
+
+from .rtc_ddim import guided_conditional_sample, prefix_weights
 
 def _config_path(config_dir):
     """policies/<config_dir>/config.yaml. colcon only installs .py files, so fall back to the
@@ -32,8 +34,8 @@ _STATE_SEGMENTS = {"joint_pos": 6, "gripper_state": 1, "ft_wrench": 6}
 
 class DiffusionPolicyModel(PolicyModel):
     def __init__(self, config_dir="diffusion"):
-        """config_dir: the policies/ subfolder whose config.yaml to use (diffusion, sim_diffusion,
-        sim_diffusion_ema, ...), so several diffusion checkpoints can share this code."""
+        """config_dir: the policies/ subfolder whose config.yaml to use (diffusion, sim_diffusion_50k,
+        sim_diffusion_ema_125k, ...), so several diffusion checkpoints can share this code."""
         with open(_config_path(config_dir)) as f:
             cfg = yaml.safe_load(f) or {}
         self._log = get_logger("diffusion_policy")
@@ -69,6 +71,14 @@ class DiffusionPolicyModel(PolicyModel):
             preprocessor_overrides={"device_processor": {"device": policy_cfg.device}},
         )
 
+        # Real-Time Chunking (rtc_ddim.py), used by inference_node when the sim runs async chunks
+        rtc = cfg.get("rtc") or {}
+        self.supports_rtc = bool(rtc.get("enabled", True))
+        self._rtc_max_guidance = float(rtc.get("max_guidance_weight", 50.0))
+        self._rtc_schedule = str(rtc.get("schedule", "linear"))
+        self.horizon = policy_cfg.horizon
+        self.first_action_index = policy_cfg.n_obs_steps - 1  # horizon row of the current step
+
         self._log.info(
             f"diffusion loaded from {ckpt_path}: task='{self._task}', state={list(self._state_keys)}, "
             f"cameras={list(self._cameras)}, n_action_steps={policy_cfg.n_action_steps}"
@@ -91,6 +101,47 @@ class DiffusionPolicyModel(PolicyModel):
             action = self._policy.select_action(self._preprocessor(batch))
         action = self._postprocessor(action)
         return action.squeeze(0).float().cpu().numpy()
+
+    def predict_chunk_rtc(self, obs: dict, prefix_norm, frozen: int):
+        """One full-horizon chunk with Real-Time Chunking guidance.
+
+        prefix_norm: (n, ACTION_DIM) normalized actions of the previous chunk re-indexed to this
+        chunk's horizon rows (row 0 = the step before the current one, row first_action_index =
+        the current step), or None for the first chunk (no guidance). frozen: rows [0, frozen)
+        execute while this chunk is computed and get weight 1; the rest of the prefix decays to 0.
+        Returns (actions (horizon - first_action_index, ACTION_DIM) unnormalized, from the current
+        step on; normalized (horizon, ACTION_DIM), to pass back as the next chunk's prefix).
+        """
+        frame = {key: encode(obs[source]) for key, (source, encode) in self._cameras.items()}
+        frame[OBS_STATE] = self._build_state(obs)
+        batch = self._preprocessor(prepare_observation_for_inference(frame, self._device, self._task, self._robot_type))
+        diffusion = self._policy.diffusion
+        n_obs = diffusion.config.n_obs_steps
+        # same obs history select_action builds after reset(): the current obs repeated n_obs times
+        model_batch = {OBS_STATE: batch[OBS_STATE].unsqueeze(1).repeat(1, n_obs, 1)}
+        if diffusion.config.image_features:
+            images = torch.stack([batch[k] for k in diffusion.config.image_features], dim=-4)
+            model_batch[OBS_IMAGES] = images.unsqueeze(1).repeat(1, n_obs, *([1] * (images.ndim - 1)))
+        with torch.inference_mode():
+            global_cond = diffusion._prepare_global_conditioning(model_batch)
+        global_cond = global_cond.clone()  # leave inference mode so autograd can run through the U-Net
+        horizon, adim = self.horizon, ACTION_DIM
+        prefix = torch.zeros(1, horizon, adim, device=self._device)
+        if prefix_norm is None or len(prefix_norm) == 0:
+            weights = torch.zeros(horizon)
+        else:
+            n = min(len(prefix_norm), horizon)
+            prefix[0, :n] = torch.as_tensor(np.asarray(prefix_norm[:n]), dtype=torch.float32, device=self._device)
+            weights = prefix_weights(min(frozen, n), n, horizon, self._rtc_schedule)
+        if weights.sum() > 0:
+            norm = guided_conditional_sample(diffusion, global_cond, prefix, weights, self._rtc_max_guidance)
+        else:
+            with torch.inference_mode():
+                norm = diffusion.conditional_sample(1, global_cond=global_cond)
+        norm = norm.detach()
+        with torch.inference_mode():
+            actions = self._postprocessor(norm[:, self.first_action_index:].clone())
+        return actions.squeeze(0).float().cpu().numpy(), norm.squeeze(0).float().cpu().numpy()
 
     def _build_state(self, obs):
         return np.concatenate([np.asarray(obs[k], dtype=np.float32).ravel() for k in self._state_keys])

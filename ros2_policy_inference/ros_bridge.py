@@ -43,6 +43,10 @@ class RosBridge:
             "ft": cfg.ft_sensor_topic,
         }
         self._last_seen = {}
+        # header stamp of the latest message and number of messages received, per topic key
+        # (read by obs_sync_check.py)
+        self.stamps = {}
+        self.counts = {}
 
         sensor_qos = QoSProfile(
             depth=10,
@@ -67,14 +71,17 @@ class RosBridge:
     def _on_joint(self, msg):
         self._joint = {"joint_pos": np.asarray(msg.position, dtype=np.float32)}
         self._last_seen["joint"] = time.monotonic()
+        self._count("joint", msg)
 
     def _on_rgb(self, msg):
         self._rgb = {"rgb": self._compressed_msg_to_array(msg)}
         self._last_seen["rgb"] = time.monotonic()
+        self._count("rgb", msg)
 
     def _on_depth(self, msg):
         self._depth = {"depth": self._image_msg_to_array(msg)}
         self._last_seen["depth"] = time.monotonic()
+        self._count("depth", msg)
 
     def _on_ft(self, msg):
         f = msg.wrench.force
@@ -83,6 +90,14 @@ class RosBridge:
             "ft_wrench": np.array([f.x, f.y, f.z, t.x, t.y, t.z], dtype=np.float32),
         }
         self._last_seen["ft"] = time.monotonic()
+
+    def _count(self, key, msg):
+        self.stamps[key] = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+        self.counts[key] = self.counts.get(key, 0) + 1
+
+    @property
+    def last_seen(self):
+        return self._last_seen
 
     @staticmethod
     def _image_msg_to_array(msg):
