@@ -1,0 +1,42 @@
+# Diffusion Policy on le_008_head (delta_robot_friday baselines/run_le008_diffusion.sh), 50k-step
+# checkpoint. Inputs: wrist RGB + head RGB + wrist depth + 7-D state, separate encoder per camera,
+# horizon 16 / n_obs_steps 2 / n_action_steps 8, DDIM 10 steps. Uses the diffusion code
+# (policies/diffusion/diffusion_policy.py).
+# Run with: ./run_docker.sh --policy-name le008_diffusion
+# Paths are inside the container: checkpoints/ is mounted at /checkpoints. Download the weights with
+#   hf download ArthurGoldFishKing/le008_policies --local-dir checkpoints/le008_policies
+#
+# le_008_head is recorded at 10 fps: each action is the motion of one 0.1 s step, so the consumer
+# (delta_extension's DeltaActionPolicy) must execute one action per 0.1 s. At a faster step rate the
+# arm moves proportionally faster than in the demonstrations.
+ckpt_path: "/checkpoints/le008_policies/diffusion"
+task: "pick up the fan by its handle"
+state_keys: [joint_pos, gripper_state]
+
+# IL grasp - overrides request_topic/chunk_topic in config/params.yaml.
+request_topic: "/il/grasp/request"
+chunk_topic: "/il/grasp/action_chunk"
+
+# Which obs each of the checkpoint's image features comes from, and how to encode it.
+# Wrist depth: clipped to 41-1988 mm, grayscale, near = bright, invalid = 0 (depth_info.json, copied
+# from the dataset's meta/). The dataset's head depth was not used in training.
+head_rgb_topic: "/camera_H/color/image_raw/compressed"
+cameras:
+  observation.images.wrist:
+    source: rgb
+    encoding: rgb
+  observation.images.head:
+    source: head_rgb
+    encoding: rgb
+  observation.images.depth:
+    source: depth
+    encoding: depth
+    info_path: "/checkpoints/le008_policies/depth_info.json"
+
+# Optional (unset = checkpoint default / auto):
+# device: "cuda"
+# n_action_steps: 8
+# num_inference_steps: 10
+# warmup: true
+# rtc:
+#   enabled: true               # Real-Time Chunking while the sim publishes exec_step (see sim_diffusion_50k)

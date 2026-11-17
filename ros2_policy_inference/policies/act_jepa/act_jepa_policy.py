@@ -41,6 +41,7 @@ class ACTJepaPolicyModel(PolicyModel):
         self._log = get_logger("act_jepa_policy")
         self.request_topic = cfg.get("request_topic")
         self.chunk_topic = cfg.get("chunk_topic")
+        self.head_rgb_topic = cfg.get("head_rgb_topic")
 
         ckpt_path = cfg["ckpt_path"]
         self._device = torch.device(cfg.get("device") or ("cuda" if torch.cuda.is_available() else "cpu"))
@@ -84,7 +85,8 @@ class ACTJepaPolicyModel(PolicyModel):
         )
         if cfg.get("warmup", True):
             n = self._image_size
-            self.predict({"rgb": np.zeros((n, n, 3), np.uint8), "depth": np.zeros((n, n), np.uint16),
+            self.predict({"rgb": np.zeros((n, n, 3), np.uint8), "head_rgb": np.zeros((n, n, 3), np.uint8),
+                          "depth": np.zeros((n, n), np.uint16),
                           "joint_pos": np.zeros(6, np.float32), "gripper_state": np.float32(1.0),
                           "ft_wrench": np.zeros(6, np.float32)})
             self.reset()

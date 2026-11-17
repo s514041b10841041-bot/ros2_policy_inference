@@ -41,6 +41,7 @@ class DiffusionPolicyModel(PolicyModel):
         self._log = get_logger("diffusion_policy")
         self.request_topic = cfg.get("request_topic")
         self.chunk_topic = cfg.get("chunk_topic")
+        self.head_rgb_topic = cfg.get("head_rgb_topic")
 
         ckpt_path = cfg["ckpt_path"]
         self._task = cfg.get("task", "")

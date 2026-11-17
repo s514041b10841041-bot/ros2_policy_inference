@@ -1,0 +1,43 @@
+# ACT-JEPA on le_008_head (delta_robot_friday JEPA/act-jepa, configs/le008/act-jepa.yaml), the final checkpoint.
+# Exported with scripts/export_for_ros.py (Hugging Face: le008_policies/act_jepa/ros_export_50k).
+# Inputs: wrist RGB + head RGB + wrist depth + 7-D state, chunk_size 20 (2 s at 10 fps). The gripper
+# command is hidden from the network (context_state_mask [6]), so the grasp is decided from the images.
+# Uses the ACT-JEPA code (policies/act_jepa/act_jepa_policy.py).
+# Run with: ./run_docker.sh --policy-name le008_act_jepa_50k
+# Check with: python3 -m ros2_policy_inference.policies.act_jepa.parity_check /checkpoints/le008_policies/act_jepa/ros_export_50k
+# Paths are inside the container: checkpoints/ is mounted at /checkpoints. Download the weights with
+#   hf download ArthurGoldFishKing/le008_policies --local-dir checkpoints/le008_policies
+#
+# le_008_head is recorded at 10 fps: each action is the motion of one 0.1 s step, so the consumer
+# (delta_extension's DeltaActionPolicy) must execute one action per 0.1 s. At a faster step rate the
+# arm moves proportionally faster than in the demonstrations.
+ckpt_path: "/checkpoints/le008_policies/act_jepa/ros_export_50k"
+state_keys: [joint_pos, gripper_state]
+task_index: 0          # single task: "pick up the fan by its handle"
+
+# IL grasp - overrides request_topic/chunk_topic in config/params.yaml.
+request_topic: "/il/grasp/request"
+chunk_topic: "/il/grasp/action_chunk"
+
+# Which obs each of the checkpoint's image features comes from, and how to encode it.
+# Wrist depth: clipped to 41-1988 mm, grayscale, near = bright, invalid = 0 (depth_info.json, copied
+# from the dataset's meta/). The dataset's head depth was not used in training.
+head_rgb_topic: "/camera_H/color/image_raw/compressed"
+cameras:
+  observation.images.wrist:
+    source: rgb
+    encoding: rgb
+  observation.images.head:
+    source: head_rgb
+    encoding: rgb
+  observation.images.depth:
+    source: depth
+    encoding: depth
+    info_path: "/checkpoints/le008_policies/depth_info.json"
+
+# Executed per request out of the 20-step chunk; 5 (0.5 s), the same as le008_act.
+n_action_steps: 5
+
+# Optional:
+# device: "cuda"
+# warmup: true

@@ -51,6 +51,17 @@ def create_policy(name: str) -> PolicyModel:
         # same act_jepa code, checkpoint from policies/<name>/config.yaml
         from .act_jepa.act_jepa_policy import ACTJepaPolicyModel
         return ACTJepaPolicyModel(config_dir=name)
+    if name in ("le008_act", "le008_diffusion", "le008_act_jepa_50k", "le008_act_jepa_35k"):
+        # le_008_head (real robot, 10 fps): wrist RGB + head RGB (head_rgb_topic) + wrist depth.
+        # Same act / diffusion / act_jepa code, checkpoint from policies/<name>/config.yaml.
+        if name == "le008_act":
+            from .act.act_policy import ACTPolicyModel
+            return ACTPolicyModel(config_dir=name)
+        if name == "le008_diffusion":
+            from .diffusion.diffusion_policy import DiffusionPolicyModel
+            return DiffusionPolicyModel(config_dir=name)
+        from .act_jepa.act_jepa_policy import ACTJepaPolicyModel
+        return ACTJepaPolicyModel(config_dir=name)
     if name == "omnireset":
         from .omnireset.omnireset_policy import OmniResetPolicyModel
         return OmniResetPolicyModel()
@@ -58,5 +69,5 @@ def create_policy(name: str) -> PolicyModel:
         f"unknown policy_name '{name}' (options: dummy, act, pi, liteflow, groot, diffusion, "
         "sim_diffusion_50k, sim_diffusion_125k, sim_diffusion_ema_50k, sim_diffusion_ema_125k, "
         "sim_diffusion_ema_50k_ema_weights, sim_diffusion_ema_125k_ema_weights, "
-        "sim_diffusion_aug_50k, sim_diffusion_aug_125k, sim_diffusion_ema_aug_50k_ema_weights, sim_diffusion_ema_aug_125k_ema_weights, sim_act_aug_50k, sim_act_aug_125k, sim_act_ema_aug_50k_ema_weights, sim_act_ema_aug_125k_ema_weights, act_jepa, sim_act_jepa_50k, sim_act_jepa_87_5k, sim_act_jepa_125k, omnireset)"
+        "sim_diffusion_aug_50k, sim_diffusion_aug_125k, sim_diffusion_ema_aug_50k_ema_weights, sim_diffusion_ema_aug_125k_ema_weights, sim_act_aug_50k, sim_act_aug_125k, sim_act_ema_aug_50k_ema_weights, sim_act_ema_aug_125k_ema_weights, act_jepa, sim_act_jepa_50k, sim_act_jepa_87_5k, sim_act_jepa_125k, le008_act, le008_diffusion, le008_act_jepa_50k, le008_act_jepa_35k, omnireset)"
     )

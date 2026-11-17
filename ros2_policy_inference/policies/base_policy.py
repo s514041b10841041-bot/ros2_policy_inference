@@ -24,6 +24,8 @@ class PolicyModel(ABC):
     sync_chunk_size = None
     request_topic = None
     chunk_topic = None
+    # Head RGB camera topic this policy needs (obs "head_rgb"); None = no head camera.
+    head_rgb_topic = None
 
     def reset(self):
         """Called once when the node starts. Override to reset any internal
@@ -36,6 +38,7 @@ class PolicyModel(ABC):
 
         obs keys:
           rgb          (image_size, image_size, 3) uint8
+          head_rgb     (image_size, image_size, 3) uint8, only when head_rgb_topic is set
           depth        (image_size, image_size) uint16/float32
           joint_pos    (6,) float32
           gripper_state  scalar float32, 1.0=open / 0.0=closed — the

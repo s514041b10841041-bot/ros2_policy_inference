@@ -39,12 +39,22 @@ Requires [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-nat
 | `liteflow` | InternVL3-1B + FLOWER, working |
 | `act_jepa` | ACT-JEPA export (`policies/act_jepa/config.yaml`), loads; see its known gripper issue |
 | `sim_act_jepa_50k` / `_87_5k` / `_125k` | ACT-JEPA on Le-007-turbo (RGB + turbo depth, gripper hidden from the policy), loads |
+| `le008_act` / `le008_diffusion` | ACT / Diffusion Policy on le_008_head (wrist RGB + head RGB + wrist depth, 10 fps), loads |
+| `le008_act_jepa_50k` / `_35k` | ACT-JEPA on le_008_head, same inputs; 35k has the lowest validation loss, loads |
 | `omnireset` | rl-template OmniReset student / RL fine-tune, CPU only, own image |
 
 Checkpoints hosted on Hugging Face (e.g. `pi`'s) are downloaded with:
 ```bash
 hf download <hf_repo_id> --local-dir checkpoints/<name>
 ```
+
+The `le008_*` policies need all their weights in `checkpoints/le008_policies/`:
+```bash
+hf download ArthurGoldFishKing/le008_policies --local-dir checkpoints/le008_policies
+```
+They also subscribe to the head camera (`head_rgb_topic` in their `config.yaml`, default
+`/camera_H/color/image_raw/compressed`) and wait for it before answering a request. le_008_head was
+recorded at 10 fps, so the consumer must execute one action every 0.1 s.
 
 ### 💻 Local
 
@@ -71,6 +81,7 @@ ros2 topic echo /il/grasp/action
 |:--|:--|:--|
 | `/camera_L/color/image_raw/compressed` | `CompressedImage` | RGB: `256 × 256 × 3` |
 | `/camera_L/depth/aligned_depth_to_color` | `Image` | Depth: `256 × 256`, nearest-neighbor resize |
+| `/camera_H/color/image_raw/compressed` | `CompressedImage` | Head RGB: `256 × 256 × 3`; only for policies that set `head_rgb_topic` (`le008_*`) |
 | `/left_arm/joint_states` | `JointState` | Position: `(6,)`; velocity: `(6,)` |
 | `/left_arm/tcp_pose_world` | `PoseStamped` | EE-offset position: `(3,)`; quaternion: `(4,)` |
 | `/left_ft/wrench_compensated` | `WrenchStamped` | `[fx, fy, fz, tx, ty, tz]` |

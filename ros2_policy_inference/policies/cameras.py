@@ -60,8 +60,9 @@ def _make_encoder(spec):
         colormap = info.get("colormap")
         if colormap == "turbo":
             return lambda depth: turbo_colorize(encode_depth(depth, d_min, d_max))
-        if colormap:
-            raise ValueError(f"{spec['info_path']}: unknown depth colormap '{colormap}' (known: turbo)")
+        # "gray" (e.g. le_008_head) is the plain encoding below, written out explicitly
+        if colormap and colormap != "gray":
+            raise ValueError(f"{spec['info_path']}: unknown depth colormap '{colormap}' (known: turbo, gray)")
         return lambda depth: encode_depth(depth, d_min, d_max)
     raise ValueError(f"unknown camera encoding '{encoding}' (known: rgb, depth)")
 

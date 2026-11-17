@@ -23,7 +23,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 if [ "${1:-}" != "--policy-name" ] || [ -z "${2:-}" ]; then
-    echo "Usage: $0 --policy-name <dummy|act|pi|groot|diffusion|sim_diffusion_50k|sim_diffusion_125k|sim_diffusion_ema_50k|sim_diffusion_ema_125k|sim_diffusion_ema_50k_ema_weights|sim_diffusion_ema_125k_ema_weights|sim_diffusion_aug_50k|sim_diffusion_aug_125k|sim_diffusion_ema_aug_50k_ema_weights|sim_diffusion_ema_aug_125k_ema_weights|sim_act_aug_50k|sim_act_aug_125k|sim_act_ema_aug_50k_ema_weights|sim_act_ema_aug_125k_ema_weights|act_jepa|sim_act_jepa_50k|sim_act_jepa_87_5k|sim_act_jepa_125k|liteflow|omnireset> [command...]" >&2
+    echo "Usage: $0 --policy-name <dummy|act|pi|groot|diffusion|sim_diffusion_50k|sim_diffusion_125k|sim_diffusion_ema_50k|sim_diffusion_ema_125k|sim_diffusion_ema_50k_ema_weights|sim_diffusion_ema_125k_ema_weights|sim_diffusion_aug_50k|sim_diffusion_aug_125k|sim_diffusion_ema_aug_50k_ema_weights|sim_diffusion_ema_aug_125k_ema_weights|sim_act_aug_50k|sim_act_aug_125k|sim_act_ema_aug_50k_ema_weights|sim_act_ema_aug_125k_ema_weights|act_jepa|sim_act_jepa_50k|sim_act_jepa_87_5k|sim_act_jepa_125k|le008_act|le008_diffusion|le008_act_jepa_50k|le008_act_jepa_35k|liteflow|omnireset> [command...]" >&2
     exit 1
 fi
 POLICY_NAME="$2"

@@ -42,6 +42,9 @@ _DEFAULT_PARAMS = dict(
     # full-horizon, stamped with the step they start at, and inpainted onto the previous chunk's
     # unexecuted actions (policies/diffusion/rtc_ddim.py). "" = <request_topic namespace>/exec_step.
     exec_step_topic="",
+    # Head RGB camera (CompressedImage), obs "head_rgb". "" = not subscribed. A policy whose
+    # config.yaml sets head_rgb_topic (e.g. the le008_* policies) overrides this.
+    head_rgb_topic="",
 )
 
 
@@ -61,6 +64,7 @@ class InferenceConfig:
     chunk_topic: str
     check_obs_sync: bool
     exec_step_topic: str
+    head_rgb_topic: str
 
 
 class PolicyInferenceNode(Node):
@@ -69,10 +73,12 @@ class PolicyInferenceNode(Node):
         cfg = self._load_config()
         self.cfg = cfg
 
-        self.bridge = RosBridge(self, cfg)
-        self._sync_check = ObsSyncCheck(self, self.bridge, cfg.joint_state_topic) if cfg.check_obs_sync else None
+        # The policy is built first: it may declare a head camera topic the bridge must subscribe to.
         self.policy = policy if policy is not None else create_policy(cfg.policy_name)
         self.policy.reset()
+        head_rgb_topic = getattr(self.policy, "head_rgb_topic", None) or cfg.head_rgb_topic
+        self.bridge = RosBridge(self, cfg, head_rgb_topic=head_rgb_topic)
+        self._sync_check = ObsSyncCheck(self, self.bridge, cfg.joint_state_topic) if cfg.check_obs_sync else None
 
         self._gripper_state = 1.0 if cfg.initial_gripper_open else 0.0
 
@@ -135,7 +141,12 @@ class PolicyInferenceNode(Node):
                     throttle_duration_sec=5.0,
                 )
             return
-        obs = self._build_obs(self.bridge.get_latest())
+        latest = self.bridge.get_latest()
+        if latest is None:  # a required topic (e.g. F/T, head camera) has never delivered a message
+            self.get_logger().warn(
+                f"chunk {seq}: waiting for the first message on every observation topic", throttle_duration_sec=5.0)
+            return
+        obs = self._build_obs(latest)
         if self._sync_check:
             self._sync_check.on_obs(seq, requested_at, obs["joint_pos"])
         if self._rtc_active():
@@ -207,6 +218,8 @@ class PolicyInferenceNode(Node):
         return {
             "rgb": resize_image(ros_data["rgb"], self.cfg.image_size, is_depth=False),
             "depth": resize_image(ros_data["depth"], self.cfg.image_size, is_depth=True),
+            **({"head_rgb": resize_image(ros_data["head_rgb"], self.cfg.image_size, is_depth=False)}
+               if "head_rgb" in ros_data else {}),
             "joint_pos": ros_data["joint_pos"],
             "gripper_state": np.float32(self._gripper_state),
             "ft_wrench": ros_data["ft_wrench"],

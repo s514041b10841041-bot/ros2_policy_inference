@@ -25,8 +25,12 @@ from geometry_msgs.msg import WrenchStamped
 
 
 class RosBridge:
-    def __init__(self, node, cfg):
+    def __init__(self, node, cfg, head_rgb_topic=""):
+        """head_rgb_topic: optional second RGB camera (CompressedImage), delivered as obs
+        "head_rgb"; "" = not subscribed (the default, so policies without it never wait for it)."""
         self._node = node
+        self._head_rgb_topic = head_rgb_topic
+        self._head_rgb = None
 
         self._joint = None
         self._rgb = None
@@ -42,6 +46,8 @@ class RosBridge:
             "depth": cfg.depth_topic,
             "ft": cfg.ft_sensor_topic,
         }
+        if head_rgb_topic:
+            self._topics["head_rgb"] = head_rgb_topic
         self._last_seen = {}
         # header stamp of the latest message and number of messages received, per topic key
         # (read by obs_sync_check.py)
@@ -58,6 +64,8 @@ class RosBridge:
         node.create_subscription(CompressedImage, cfg.rgb_topic, self._on_rgb, sensor_qos)
         node.create_subscription(Image, cfg.depth_topic, self._on_depth, sensor_qos)
         node.create_subscription(WrenchStamped, cfg.ft_sensor_topic, self._on_ft, 10)
+        if head_rgb_topic:
+            node.create_subscription(CompressedImage, head_rgb_topic, self._on_head_rgb, sensor_qos)
 
         log = node.get_logger()
         log.info("RosBridge topics:")
@@ -65,6 +73,8 @@ class RosBridge:
         log.info(f"  rgb      = {cfg.rgb_topic}  (CompressedImage, BEST_EFFORT)")
         log.info(f"  depth    = {cfg.depth_topic}  (BEST_EFFORT)")
         log.info(f"  ft       = {cfg.ft_sensor_topic}")
+        if head_rgb_topic:
+            log.info(f"  head_rgb = {head_rgb_topic}  (CompressedImage, BEST_EFFORT)")
 
     # ---------- per-topic callbacks ----------
 
@@ -77,6 +87,11 @@ class RosBridge:
         self._rgb = {"rgb": self._compressed_msg_to_array(msg)}
         self._last_seen["rgb"] = time.monotonic()
         self._count("rgb", msg)
+
+    def _on_head_rgb(self, msg):
+        self._head_rgb = {"head_rgb": self._compressed_msg_to_array(msg)}
+        self._last_seen["head_rgb"] = time.monotonic()
+        self._count("head_rgb", msg)
 
     def _on_depth(self, msg):
         self._depth = {"depth": self._image_msg_to_array(msg)}
@@ -139,20 +154,25 @@ class RosBridge:
 
     def get_latest(self):
         """Most recent message from every topic, merged into one dict.
-        Returns None until joint + rgb + depth + ft have each
-        been received at least once."""
+        Returns None until joint + rgb + depth + ft (and head_rgb, when
+        subscribed) have each been received at least once."""
         if (self._joint is None or self._rgb is None or self._depth is None
-                or self._ft is None):
+                or self._ft is None or (self._head_rgb_topic and self._head_rgb is None)):
             return None
         out = {}
         out.update(self._joint)
         out.update(self._rgb)
         out.update(self._depth)
         out.update(self._ft)
+        if self._head_rgb is not None:
+            out.update(self._head_rgb)
         return out
 
-    def received_since(self, t, keys=("joint", "rgb", "depth")):
-        """True once every topic in keys has delivered a message after monotonic time t."""
+    def received_since(self, t, keys=None):
+        """True once every topic in keys has delivered a message after monotonic time t.
+        keys=None: joint, rgb and depth, plus head_rgb when it is subscribed."""
+        if keys is None:
+            keys = ("joint", "rgb", "depth") + (("head_rgb",) if self._head_rgb_topic else ())
         return all(self._last_seen.get(k, -1.0) > t for k in keys)
 
     def check_health(self, timeout_sec):
