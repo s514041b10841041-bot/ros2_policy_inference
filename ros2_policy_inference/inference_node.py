@@ -35,7 +35,15 @@ _DEFAULT_PARAMS = dict(
     action_topic="/il/grasp/action",
     # Which policies/*.py implementation to run — see policies/__init__.py.
     policy_name="dummy",
-    inference_rate_hz=10.0,
+    # Only used by policy_name="diffusion": the lerobot checkpoint directory
+    # (the one containing config.json / model.safetensors), the torch device,
+    # and the language task string the model was trained with.
+    policy_checkpoint_path="",
+    policy_device="cuda",
+    policy_task="pick up the fan by its handle",
+    # Matches config/params.yaml: one policy step per camera period (see the
+    # comment there for why 30 Hz and why a fixed timer rather than RGB callbacks).
+    inference_rate_hz=30.0,
     topic_timeout_sec=2.0,
     image_size=256,
     ee_pos_offset=[0.0, 0.0, 0.2204],
@@ -54,6 +62,9 @@ class InferenceConfig:
     ft_sensor_topic: str
     action_topic: str
     policy_name: str
+    policy_checkpoint_path: str
+    policy_device: str
+    policy_task: str
     inference_rate_hz: float
     topic_timeout_sec: float
     image_size: int
@@ -73,7 +84,13 @@ class PolicyInferenceNode(Node):
         self._ee_rot_offset = Rotation.from_quat(cfg.ee_rot_offset_xyzw)
 
         self.bridge = RosBridge(self, cfg)
-        self.policy = policy if policy is not None else create_policy(cfg.policy_name)
+        self.policy = policy if policy is not None else create_policy(
+            cfg.policy_name,
+            checkpoint_path=cfg.policy_checkpoint_path,
+            device=cfg.policy_device,
+            task=cfg.policy_task,
+            logger=self.get_logger(),
+        )
         self.policy.reset()
 
         self._gripper_state = 1.0 if cfg.initial_gripper_open else 0.0

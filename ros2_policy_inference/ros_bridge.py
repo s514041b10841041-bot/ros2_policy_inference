@@ -1,4 +1,5 @@
 """
+Used by inference_node.py
 Subscribes to the real robot's camera + proprioception topics used as
 policy observations, and publishes the policy's predicted EE-offset action.
 

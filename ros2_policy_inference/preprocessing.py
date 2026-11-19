@@ -1,4 +1,5 @@
 """
+Used by inference_node.py
 Observation preprocessing shared by PolicyInferenceNode: image resize and
 the fixed EE-frame reprojection (tcp_pose_topic's reported frame -> the
 true EE frame), matching the transform ros2_data_collector applies before
